@@ -78,6 +78,9 @@ type realAgent struct {
 	initialized bool
 	sessions    map[string]*sessionState
 	metrics     *agentMetrics
+
+	// Observability
+	tracerShutdown func(context.Context) error
 }
 
 // sessionState tracks per-session information for the agent
@@ -1216,6 +1219,14 @@ func (a *realAgent) Initialize(ctx context.Context) error {
 //	defer agent.Cleanup(context.Background())
 func (a *realAgent) Cleanup(ctx context.Context) error {
 	Logger().Debug().Str("agent", a.config.Name).Msg("Cleaning up agent resources")
+
+	// Shutdown tracer if enabled
+	if a.tracerShutdown != nil {
+		if err := a.tracerShutdown(ctx); err != nil {
+			Logger().Warn().Err(err).Msg("Error shutting down tracer")
+			// Don't return error, continue cleanup
+		}
+	}
 
 	// Close memory provider if present
 	if a.memoryProvider != nil {

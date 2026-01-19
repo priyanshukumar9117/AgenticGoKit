@@ -29,6 +29,10 @@ type AgentBuilder struct {
 	subAgents       []core.Agent
 	multiConfig     core.MultiAgentConfig
 	loopConfig      core.LoopConfig
+	// Observability fields
+	observabilityEnabled bool
+	serviceName          string
+	serviceVersion       string
 }
 
 // AgentBuilderConfig contains configuration for the agent builder
@@ -36,6 +40,7 @@ type AgentBuilderConfig struct {
 	ValidateCapabilities bool // Whether to validate capability combinations
 	SortByPriority       bool // Whether to sort capabilities by priority
 	StrictMode           bool // Whether to fail on any capability error
+	AutoTracing          bool // Whether to automatically set up tracing from env vars
 }
 
 // DefaultAgentBuilderConfig returns sensible defaults for agent builder configuration
@@ -143,6 +148,31 @@ func (b *AgentBuilder) WithMultiAgentConcurrency(maxConcurrency int) *AgentBuild
 		b.multiConfig = core.DefaultMultiAgentConfig()
 	}
 	b.multiConfig.MaxConcurrency = maxConcurrency
+	return b
+}
+
+// =============================================================================
+// OBSERVABILITY METHODS
+// =============================================================================
+
+// WithObservability enables automatic observability setup with the specified service metadata.
+// When enabled, the builder will automatically check the AGK_TRACE environment variable
+// and set up tracing, logging, and correlation if tracing is enabled.
+// The agent will own the tracer shutdown lifecycle via its Close() method.
+//
+// Example:
+//
+//	agent, err := agk.NewBuilder("researcher").
+//	    WithObservability("my-service", "1.0.0").
+//	    Build()
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer agent.Close(ctx)
+func (b *AgentBuilder) WithObservability(serviceName, serviceVersion string) *AgentBuilder {
+	b.observabilityEnabled = true
+	b.serviceName = serviceName
+	b.serviceVersion = serviceVersion
 	return b
 }
 
